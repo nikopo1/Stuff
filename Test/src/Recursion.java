@@ -143,7 +143,34 @@ public class Recursion {
 		System.out.println("After:  a = "+a+" , b = "+b);
 	}
 	
-	public static void main(String[] args) {
+	// 19.7
+	public static void maximumSequenceSum(int[] array) {
+		int maxsum = 0, sum = 0;
+		int startnew = 0, start = 0, end = -1;
 		
+		for(int i = 0; i < array.length; i++) {
+			if( sum < 0) {
+				sum = 0;
+				startnew = i;
+			}
+			sum += array[i];
+			if( sum > maxsum ) {
+				start = startnew;
+				end = i;
+				maxsum = sum;
+			}
+		}
+		System.out.println("MaxSum = " + maxsum + " - [" + start + "," + end + "]");
+	}
+	
+	public static void testMaximumSequenceSum() {
+		int[] array = { 2, -8, 3, -2, 4, -10 };
+		int[] array2 = { -2, -8, -3, -2, -4, -10 };
+		maximumSequenceSum(array);
+		maximumSequenceSum(array2);
+	}
+	
+	public static void main(String[] args) {
+		testMaximumSequenceSum();
 	}
 }
