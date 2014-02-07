@@ -5,10 +5,6 @@ import java.util.LinkedList;
 
 public class Tree {
 	
-	private enum State {
-		Unvisited, Visiting, Visited
-	}
-	
 	// 4.1
 	public static int minTreeHeight(Node node) {
 		
