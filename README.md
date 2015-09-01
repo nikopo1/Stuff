@@ -1,7 +1,7 @@
 Stuff
 =====
 
-A fistful of stuff
+A fistful of stuff by me.
 
 Java
 --
