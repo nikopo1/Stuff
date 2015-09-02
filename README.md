@@ -6,7 +6,7 @@ A fistful of stuff.
 Java
 --
 
-A bunch of test practice stuff for rehersing interview questions, mainly solutions to Cracking the Coding Interview.
+Solutions to interview questions from Cracking the Coding Interview and other sources.
 
 C++ templates
 --
