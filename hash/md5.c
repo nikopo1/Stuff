@@ -3,12 +3,39 @@
 #include <string.h>
 
 
+#define MD5_CHUNK_SIZE      64
+
+
+static void print_hex(const unsigned char* addr, unsigned int size)
+{
+    unsigned int i;
+
+    for (i = 0; i < size; i++)
+    {
+        if (i > 0 && i % 4 == 0)
+        {
+            printf(" ");
+        }
+
+        if (i > 0 && i % 16 == 0)
+        {
+            printf("\n");
+        }
+
+        printf("%02x", addr[i]);
+    }
+
+    printf("\n");
+}
+
+
 static const uint8_t s[] = {
     7, 12, 17, 22,  7, 12, 17, 22,  7, 12, 17, 22,  7, 12, 17, 22,
     5,  9, 14, 20,  5,  9, 14, 20,  5,  9, 14, 20,  5,  9, 14, 20,
     4, 11, 16, 23,  4, 11, 16, 23,  4, 11, 16, 23,  4, 11, 16, 23,
     6, 10, 15, 21,  6, 10, 15, 21,  6, 10, 15, 21,  6, 10, 15, 21
 };
+
 
 static const uint32_t k[] = {
     0xd76aa478, 0xe8c7b756, 0x242070db, 0xc1bdceee,
@@ -36,65 +63,12 @@ static inline uint32_t leftrotate(uint32_t val, uint8_t count)
 }
 
 
-void print_hex(const unsigned char* addr, unsigned int size)
+static void md5_encode(const uint32_t* msg, uint32_t* hash)
 {
-    unsigned int i;
-
-    for (i = 0; i < size; i++)
-    {
-        if (i > 0 && i % 4 == 0)
-        {
-            printf(" ");
-        }
-
-        if (i > 0 && i % 16 == 0)
-        {
-            printf("\n");
-        }
-
-        printf("%02x", addr[i]);
-    }
-
-    printf("\n");
-}
-
-
-void encode(uint32_t* input, unsigned char* output, unsigned int size)
-{
-    unsigned int i, j;
-
-    for (i = 0, j = 0; j < size; i++, j += 4)
-    {
-        output[j]   = (unsigned char)(input[i] & 0xff);
-        output[j+1] = (unsigned char)((input[i] >> 8) & 0xff);
-        output[j+2] = (unsigned char)((input[i] >> 16) & 0xff);
-        output[j+3] = (unsigned char)((input[i] >> 24) & 0xff);
-    }
-}
-
-
-void md5(const void* addr, unsigned int size, uint32_t* hash)
-{
-    uint32_t msg[16] = {0};
-
-    memset(msg, 0, sizeof(msg));
-    memcpy(msg, "The quick brown fox jumps over the lazy dog.", 44);
-
-    msg[11] = 0x00000080;
-
-    uint64_t value = 44 * 8;
-
-    encode((uint32_t*)&value, (unsigned char*)&msg[14], 8);
-
-    uint32_t a0 = 0x67452301;
-    uint32_t b0 = 0xefcdab89;
-    uint32_t c0 = 0x98badcfe;
-    uint32_t d0 = 0x10325476;
-
-    uint32_t a = a0;
-    uint32_t b = b0;
-    uint32_t c = c0;
-    uint32_t d = d0;
+    uint32_t a = hash[0];
+    uint32_t b = hash[1];
+    uint32_t c = hash[2];
+    uint32_t d = hash[3];
     uint32_t f;
     uint32_t g;
     uint32_t dtemp;
@@ -129,25 +103,96 @@ void md5(const void* addr, unsigned int size, uint32_t* hash)
         a = dtemp;
     }
 
-    a0 += a;
-    b0 += b;
-    c0 += c;
-    d0 += d;
-
-    print_hex((const char*)msg, sizeof(msg));
-
-    hash[0] = a0;
-    hash[1] = b0;
-    hash[2] = c0;
-    hash[3] = d0;
+    hash[0] += a;
+    hash[1] += b;
+    hash[2] += c;
+    hash[3] += d;
 }
 
 
-int main(void)
+void md5(const char* msg, unsigned int size, uint32_t* hash)
+{
+    char chunk[MD5_CHUNK_SIZE];
+
+    hash[0] = 0x67452301;
+    hash[1] = 0xefcdab89;
+    hash[2] = 0x98badcfe;
+    hash[3] = 0x10325476;
+
+    unsigned int num_chunks = (size / MD5_CHUNK_SIZE) + (size % MD5_CHUNK_SIZE != 0);
+
+    if ((size + 1) % MD5_CHUNK_SIZE > MD5_CHUNK_SIZE - sizeof(uint64_t))
+    {
+        num_chunks++;
+    }
+
+    unsigned int hashed_size = 0;
+
+    while (size - hashed_size >= MD5_CHUNK_SIZE)
+    {
+        memcpy(chunk, &msg[hashed_size], MD5_CHUNK_SIZE);
+        md5_encode((uint32_t*)chunk, hash);
+        hashed_size += MD5_CHUNK_SIZE;
+    }
+
+    /* Set the first bit after the data being hashed. */
+    memcpy(chunk, &msg[hashed_size], size - hashed_size);
+    chunk[size - hashed_size] = 0x80;
+    memset(&chunk[size - hashed_size + 1], 0, MD5_CHUNK_SIZE - (size - hashed_size + 1));
+
+    if ((size + 1) % MD5_CHUNK_SIZE > 56)
+    {
+        /* Hash an extra block, hashed data length doesn't fit in this block. */
+        md5_encode((uint32_t*)chunk, hash);
+
+        memset(chunk, 0, MD5_CHUNK_SIZE);
+        uint64_t length = size * 8;
+        memcpy(&chunk[MD5_CHUNK_SIZE - 8], &length, 8);
+        md5_encode((uint32_t*)chunk, hash);
+    }
+    else
+    {
+        /* Write hashed data length in the current block, it fits. */
+        uint64_t length = size * 8;
+        memcpy(&chunk[MD5_CHUNK_SIZE - 8], &length, 8);
+        md5_encode((uint32_t*)chunk, hash);
+    }
+
+    print_hex(chunk, MD5_CHUNK_SIZE);
+}
+
+
+int main(int argc, char* argv[])
 {
     uint8_t hash[16];
+    FILE* f = NULL;
 
-    md5(NULL, 10, hash);
+    //char* text = "The quick brown fox jumps over the lazy dog.";
+    //md5(text, 44, (uint32_t*)hash);
+
+    if (argc != 2)
+    {
+        printf("Usage: %s file\n\n", argv[0]);
+        return -1;
+    }
+
+    f = fopen(argv[1], "r");
+    if (!f)
+    {
+        printf("File %s could not be opened\n", argv[1]);
+        return -2;
+    }
+
+    char buffer[4096];
+    int size;
+    size = fread(buffer, 1, 4096, f);
+    if (size < 0)
+    {
+        printf("Couldn't read data\n");
+        return -3;
+    }
+
+    md5(buffer, size, (uint32_t*)hash);
 
     for (int i = 0; i < 16; i++)
     {
