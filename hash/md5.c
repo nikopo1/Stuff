@@ -2,8 +2,8 @@
 #include <stdio.h>
 #include <string.h>
 
-
-#define MD5_CHUNK_SIZE      64
+#include "md5.h"
+#include "resource_manager_fake_resources.h"
 
 
 static void print_hex(const unsigned char* addr, unsigned int size)
@@ -28,16 +28,43 @@ static void print_hex(const unsigned char* addr, unsigned int size)
     printf("\n");
 }
 
+/**
+ * \brief Left-rotates the bits of the given value with the specified amount of positions.
+ *
+ * \param val   The value to left-rotate.
+ * \param count Number of bit positions to rotate.
+ *
+ * \return The rotated value.
+ */
+static inline uint32_t _leftrotate(uint32_t val, uint8_t count);
 
-static const uint8_t s[] = {
+/**
+ * \brief Runs the hashing rounds specified in MD5 RFC 1321 on a 512-bit block.
+ *
+ * \param address   Pointer to the start of the 512-bit block.
+ * \param hash      Pointer to a 128-bit array containing the hash computed so far.
+ *
+ * \note For the first block, the hash must be contain the values specified in RFC 1321.
+ */
+static void _hash_block(const void* msg, uint32_t* hash);
+
+
+/**
+ * \brief Number of bits to shift per round.
+ */
+static const uint8_t g_round_shift[] = {
     7, 12, 17, 22,  7, 12, 17, 22,  7, 12, 17, 22,  7, 12, 17, 22,
     5,  9, 14, 20,  5,  9, 14, 20,  5,  9, 14, 20,  5,  9, 14, 20,
     4, 11, 16, 23,  4, 11, 16, 23,  4, 11, 16, 23,  4, 11, 16, 23,
     6, 10, 15, 21,  6, 10, 15, 21,  6, 10, 15, 21,  6, 10, 15, 21
 };
 
-
-static const uint32_t k[] = {
+/**
+ * \brief Sines of angles expressed in radians. See the following function.
+ *
+ * sine_rad[angle] = (2^32 * abs(sin(angle + 1))) mod 2^32, where angle is expressed in radians.
+ */
+static const uint32_t g_sine_radians[] = {
     0xd76aa478, 0xe8c7b756, 0x242070db, 0xc1bdceee,
     0xf57c0faf, 0x4787c62a, 0xa8304613, 0xfd469501,
     0x698098d8, 0x8b44f7af, 0xffff5bb1, 0x895cd7be,
@@ -57,21 +84,84 @@ static const uint32_t k[] = {
 };
 
 
-static inline uint32_t leftrotate(uint32_t val, uint8_t count)
+void md5_init(struct md5_context* context)
+{
+    context->hash[0] = 0x67452301;
+    context->hash[1] = 0xefcdab89;
+    context->hash[2] = 0x98badcfe;
+    context->hash[3] = 0x10325476;
+    context->length = 0;
+}
+
+
+void md5_update(struct md5_context* context, const uint8_t* msg, uint64_t size)
+{
+    uint32_t offset = 0;
+
+    while (size > 0)
+    {
+        uint16_t chunk_offset = context->length % MD5_CHUNK_SIZE;
+        uint16_t chunk_left = MD5_CHUNK_SIZE - chunk_offset;
+
+        if (chunk_left <= size)
+        {
+            memcpy(&context->chunk[chunk_offset], &msg[offset], chunk_left);
+            _hash_block(context->chunk, context->hash);
+            context->length += chunk_left;
+            offset += chunk_left;
+            size -= chunk_left;
+        }
+        else
+        {
+            memcpy(&context->chunk[chunk_offset], &msg[offset], size);
+            context->length += size;
+            return;
+        }
+    }
+}
+
+
+void md5_final(struct md5_context* context)
+{
+    uint16_t chunk_offset = context->length % MD5_CHUNK_SIZE;
+    uint16_t chunk_left = MD5_CHUNK_SIZE - chunk_offset;
+    uint64_t bit_length = context->length * 8;
+
+    context->chunk[chunk_offset] = 0x80;
+    memset(&context->chunk[chunk_offset + 1], 0, chunk_left - 1);
+
+    printf("context->length = %u, chunk_left = %u, chunk_offset = %u\n", context->length, chunk_left, chunk_offset);
+
+    if (chunk_left - 1 < sizeof(uint64_t))
+    {
+        printf("Passes through here\n");
+        _hash_block(context->chunk, context->hash);
+        memset(context->chunk, 0, MD5_CHUNK_SIZE);
+    }
+
+    memcpy(&context->chunk[MD5_CHUNK_SIZE - sizeof(uint64_t)], &bit_length, sizeof(uint64_t));
+    _hash_block(context->chunk, context->hash);
+}
+
+
+static inline uint32_t _leftrotate(uint32_t val, uint8_t count)
 {
     return (val << count) | (val >> (32 - count));
 }
 
 
-static void md5_encode(const uint32_t* msg, uint32_t* hash)
+static void _hash_block(const void* address, uint32_t* hash)
 {
+    const uint32_t* msg = address;
     uint32_t a = hash[0];
     uint32_t b = hash[1];
     uint32_t c = hash[2];
     uint32_t d = hash[3];
-    uint32_t f;
-    uint32_t g;
+    uint32_t f = 0;
+    uint32_t g = 0;
     uint32_t dtemp;
+
+    //print_hex(address, MD5_CHUNK_SIZE);
 
     for (int i = 0; i < 64; i++)
     {
@@ -99,7 +189,7 @@ static void md5_encode(const uint32_t* msg, uint32_t* hash)
         dtemp = d;
         d = c;
         c = b;
-        b = b + leftrotate(a + f + k[i] + msg[g], s[i]);
+        b = b + _leftrotate(a + f + g_sine_radians[i] + msg[g], g_round_shift[i]);
         a = dtemp;
     }
 
@@ -110,65 +200,31 @@ static void md5_encode(const uint32_t* msg, uint32_t* hash)
 }
 
 
-void md5(const char* msg, unsigned int size, uint32_t* hash)
+void compute_hash(const uint8_t* address, unsigned int size)
 {
-    char chunk[MD5_CHUNK_SIZE];
+    unsigned int i;
+    struct md5_context context;
 
-    hash[0] = 0x67452301;
-    hash[1] = 0xefcdab89;
-    hash[2] = 0x98badcfe;
-    hash[3] = 0x10325476;
+    md5_init(&context);
 
-    unsigned int num_chunks = (size / MD5_CHUNK_SIZE) + (size % MD5_CHUNK_SIZE != 0);
-
-    if ((size + 1) % MD5_CHUNK_SIZE > MD5_CHUNK_SIZE - sizeof(uint64_t))
+    for (i = 0; i < size; i++)
     {
-        num_chunks++;
+        md5_update(&context, &address[i], 1);
     }
 
-    unsigned int hashed_size = 0;
+    md5_final(&context);
 
-    while (size - hashed_size >= MD5_CHUNK_SIZE)
+    for (i = 0; i < 4; i++)
     {
-        memcpy(chunk, &msg[hashed_size], MD5_CHUNK_SIZE);
-        md5_encode((uint32_t*)chunk, hash);
-        hashed_size += MD5_CHUNK_SIZE;
+        printf("%x ", context.hash[i]);
     }
-
-    /* Set the first bit after the data being hashed. */
-    memcpy(chunk, &msg[hashed_size], size - hashed_size);
-    chunk[size - hashed_size] = 0x80;
-    memset(&chunk[size - hashed_size + 1], 0, MD5_CHUNK_SIZE - (size - hashed_size + 1));
-
-    if ((size + 1) % MD5_CHUNK_SIZE > 56)
-    {
-        /* Hash an extra block, hashed data length doesn't fit in this block. */
-        md5_encode((uint32_t*)chunk, hash);
-
-        memset(chunk, 0, MD5_CHUNK_SIZE);
-        uint64_t length = size * 8;
-        memcpy(&chunk[MD5_CHUNK_SIZE - 8], &length, 8);
-        md5_encode((uint32_t*)chunk, hash);
-    }
-    else
-    {
-        /* Write hashed data length in the current block, it fits. */
-        uint64_t length = size * 8;
-        memcpy(&chunk[MD5_CHUNK_SIZE - 8], &length, 8);
-        md5_encode((uint32_t*)chunk, hash);
-    }
-
-    print_hex(chunk, MD5_CHUNK_SIZE);
+    printf("\n");
 }
 
 
 int main(int argc, char* argv[])
 {
-    uint8_t hash[16];
     FILE* f = NULL;
-
-    //char* text = "The quick brown fox jumps over the lazy dog.";
-    //md5(text, 44, (uint32_t*)hash);
 
     if (argc != 2)
     {
@@ -183,16 +239,24 @@ int main(int argc, char* argv[])
         return -2;
     }
 
-    char buffer[4096];
+    compute_hash(large_resource_1_data, sizeof(large_resource_1_data));
+    compute_hash(small_resource_1_data, sizeof(small_resource_1_data));
+
+    struct md5_context context;
+
+    char buffer[21];
     int size;
-    size = fread(buffer, 1, 4096, f);
-    if (size < 0)
+
+    md5_init(&context);
+
+    while (size = fread(buffer, 1, sizeof(buffer), f))
     {
-        printf("Couldn't read data\n");
-        return -3;
+        md5_update(&context, buffer, size);
     }
 
-    md5(buffer, size, (uint32_t*)hash);
+    md5_final(&context);
+
+    uint8_t* hash = (uint8_t*)&context.hash;
 
     for (int i = 0; i < 16; i++)
     {
