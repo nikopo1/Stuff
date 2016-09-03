@@ -81,4 +81,3 @@ termină în `.l`, poți să dai direct `make lexer` pentru fișierul `lexer.l`.
 [6]: https://www.gnu.org/software/bison/manual/html_node/Multiple-start_002dsymbols.html
 [7]: https://www.gnu.org/software/bison/manual/html_node/Reduce_002fReduce.html
 [8]: https://www.gnu.org/software/bison/manual/html_node/Shift_002fReduce.html
-
