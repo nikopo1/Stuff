@@ -61,8 +61,8 @@ Examples in the standard library of resource-managing objects:
 
 ## Item 17 - Store `new`ed objects in smart pointers in standalone statements
 
-C++ doesn't guarantee a particular order when evaluating a function
-call's parameters. This can lead to leaked resources, for example:
+C++ doesn't guarantee a particular order when evaluating function call
+parameters. This can lead to leaked resources, for example:
 
 ```
 function(std::shared_ptr<MyClass>(new MyClass), exception_thrower())
