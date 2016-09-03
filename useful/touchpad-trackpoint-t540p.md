@@ -68,8 +68,9 @@ because the ``xorg-server.h`` wasn't included in the ``eventcomm.h`` and
 
 # TouchPad
 
-In order to test different configurations for the touchpad, do the
-following:
+In order to test different configurations for the touchpad, I tried
+disabling and enabling the device, but that didn't seem to work. The
+only way to set new configs is to restart X11.
 
 ```
 xinput disable $DEVICE_NAME
