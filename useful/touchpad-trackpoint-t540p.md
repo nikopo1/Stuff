@@ -88,14 +88,16 @@ Option "SoftButtonAreas" "60% 0   0   40% 40% 60% 0   40%"
 The acronyms in each 3 letter pair stand for:
 `{Right|Middle}Button{Left|Right|Top|Bottom}`.
 
-The configuration that I tried and ended up is:
+The configuration that I tried and ended up with is:
 
 ```
 Option "SoftButtonAreas" "67% 0   0   30% 33% 67% 0   30%"
 ```
 
 This corresponds to the following layout of the TouchPad. You can see
-that the Left Button press extends downwards to the rest of the TouchPad.
+that the Left Button press extends downwards to the rest of the
+TouchPad. Unfortunately, two finger scrolling won't work on the top 30%
+area anymore.
 
 ```
    33%      34%     33%
