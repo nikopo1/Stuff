@@ -65,7 +65,7 @@ C++ doesn't guarantee a particular order when evaluating function call
 parameters. This can lead to leaked resources, for example:
 
 ```
-function(std::shared_ptr<MyClass>(new MyClass), exception_thrower())
+function(std::shared_ptr<MyClass>(new MyClass), exception_thrower());
 ```
 
 The function arguments can be evaluated (a.k.a. valid C++) in this order:
@@ -91,3 +91,9 @@ Use C++-style casting instead of C-style:
 Avoid casting in general try to design it out, especially `dynamic_casts` in
 performance-sensitive code. Hide casting in library functions, so
 clients don't have to write it.
+
+## Item 28 - Avoid returning "handles" to object internals
+
+Avoid returning references, pointers, or iterators to object internals
+(a.k.a. fields and methods of a class instance). This helps overall
+encapsulation, const member functions will act const.
