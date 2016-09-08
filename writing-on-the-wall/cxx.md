@@ -97,3 +97,45 @@ clients don't have to write it.
 Avoid returning references, pointers, or iterators to object internals
 (a.k.a. fields and methods of a class instance). This helps overall
 encapsulation, const member functions will act const.
+
+```
+#include <memory>
+
+class Component {
+    public:
+        int value;
+};
+
+class SystemData {
+    public:
+        Component base;
+        Component helper;
+};
+
+class System {
+    public:
+        Component& get_base() const { return data->base; }
+        Component& get_helper() const { return data->helper; }
+
+    private:
+        std::shared_ptr<SystemData> data;
+};
+
+int main(void)
+{
+    System system;
+
+    system.get_base().value = 1;
+
+    return 0;
+}
+```
+
+In this example, although the getter methods for the System class are
+const, these return references to objects that are part of the
+SystemData class - thus making it possible to alter the internals of the
+System class.
+
+One solution might be to make the reference return type const, but that
+won't solve the issue of dangling references if the System object is
+deallocated (e.g. when running out of scope).
