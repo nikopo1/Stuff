@@ -6,6 +6,7 @@ Compilers
 Useful macros:
 * `char *yytext` - atomul curent
 * `int yyleng` - lungimea atomului curent
+* `int yylineno` - linia curentă
 * `REJECT` - respinge match-ul curent, caută altă regulă care potrivește
 
 
