@@ -92,7 +92,7 @@ The acronyms in each 3 letter pair stand for:
 The configuration that I tried and ended up with is:
 
 ```
-Option "SoftButtonAreas" "67% 0   0   30% 33% 67% 0   30%"
+Option "SoftButtonAreas" "70% 0   0   20% 30% 70% 0   20%"
 ```
 
 This corresponds to the following layout of the TouchPad. You can see
@@ -101,7 +101,7 @@ TouchPad. Unfortunately, two finger scrolling won't work on the top 30%
 area anymore.
 
 ```
-   33%      34%     33%
+   30%      40%     30%
 +-------+--------+-------+
 | Left  | Middle | Right | 30%
 +       +--------+-------+
