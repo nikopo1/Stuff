@@ -1,6 +1,14 @@
 C++ Notes
 =========
 
+# General remarks
+
+## C++ references
+
+Properties of references:
+  * Will always point to the same object
+  * Cannot be set to 0 (null)
+
 # Effective C++
 
 The following are some notes that I've took on the items discussed in
@@ -139,3 +147,7 @@ System class.
 One solution might be to make the reference return type const, but that
 won't solve the issue of dangling references if the System object is
 deallocated (e.g. when running out of scope).
+
+## Item 32: Make sure public inheritance models "is-a"
+
+The title pretty much says it all.
